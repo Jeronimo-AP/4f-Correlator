@@ -78,7 +78,7 @@ cmaps = [LinearSegmentedColormap.from_list('custom',
                                             [(0,0,0),wavelength_to_rgb(lam.magnitude)],
                                             N=256) for lam in [lam1, lam2, lam3, lam4]]
 
-#Calculation for a slit with green light
+#Calculation for a slit in the object plane
 j="B"#input("Enter apature function")#.upper()
 U0 = np.array(Image.open(f'./images/{j}.jpg').convert('L'))
 U0 = cv2.flip(U0, 0)
