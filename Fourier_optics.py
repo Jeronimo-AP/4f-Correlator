@@ -66,10 +66,11 @@ def wavelength_to_rgb(wavelength, gamma=0.8):
     #B *= 255
     return (R, G, B)
 
+
 #Define different wavelengths and lens focus
 f = 1.3E8*u.nm
 lam1 = 400*u.nm
-lam2 = 500*u.nm
+lam2 = 505*u.nm
 lam3 = 600*u.nm
 lam4 = 700*u.nm
 
@@ -78,10 +79,10 @@ cmaps = [LinearSegmentedColormap.from_list('custom',
                                             [(0,0,0),wavelength_to_rgb(lam.magnitude)],
                                             N=256) for lam in [lam1, lam2, lam3, lam4]]
 
-#Calculation for a slit in the object plane
-j="B"#input("Enter apature function")#.upper()
+#Calculation for a slit with green light
+j="spd"#input("Enter apature function")#.upper()
 U0 = np.array(Image.open(f'./images/{j}.jpg').convert('L'))
-U0 = cv2.flip(U0, 0)
+#U0 = cv2.flip(U0, 0)
 #U0 = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
 x = np.linspace(-23,23,U0.shape[0]) * u.mm
 xv, yv = np.meshgrid(x, x)
@@ -99,11 +100,13 @@ freq_central = fp.fftshift(freq1)
 freq_external = fp.fftshift(freq1)
 freq_horizontal = fp.fftshift(freq1)
 freq_vertical = fp.fftshift(freq1)
-freq_diag_positive = fp.fftshift(freq1)
+freq_edge_vertical = fp.fftshift(freq1)
+freq_edge_horizontal = fp.fftshift(freq1)
+
 
 # specify circle parameters: centre ij and radius
 ci,cj=half_w,half_h
-cr=20
+cr=15
 # Create index arrays to z
 c_x,c_y=np.meshgrid(np.arange(freq1.shape[0]),np.arange(freq1.shape[1]))
 
@@ -113,32 +116,45 @@ dist=np.sqrt((c_x-ci)**2+(c_y-cj)**2)
 # Assign value of 1 to those points where dist<cr:
 freq_central[np.where(dist<cr)]=0 # select all but the first 20x20 (low) frequencies
 
-freq_horizontal[half_w-8:half_w+9,0:half_h*2] = 0 # select all but the horizontral frequencies
-freq_vertical[0:half_w*2,half_h-8:half_h+9] = 0 # select all but the vertical frequencies
-freq_external=freq_external-freq_central
+freq_width=8
 
-im_i_c = np.clip(fp.ifft2(fp.ifftshift(freq_central)).real,0,255) # clip pixel values after IFFT
-im_e_l_h = np.clip(fp.ifft2(fp.ifftshift(freq_horizontal)).real,0,255) 
-im_e_l_v = np.clip(fp.ifft2(fp.ifftshift(freq_vertical)).real,0,255) 
-im_e_c = np.clip(fp.ifft2(fp.ifftshift(freq_external)).real,0,255) 
-im_e_l_positive = np.clip(fp.ifft2(fp.ifftshift(freq_diag_positive)).real,0,255)
+freq_horizontal[half_w-freq_width:half_w+freq_width+1,0:half_h*2] = 0 # select all but the horizontral frequencies
+freq_vertical[0:half_w*2,half_h-freq_width:half_h+freq_width+1] = 0 # select all but the vertical frequencies
+freq_external=freq_external - freq_central
+freq_edge_vertical = freq_edge_vertical - freq_vertical #select only vertical frequencies
+freq_edge_vertical[half_w-freq_width:half_w+freq_width+1,half_h-freq_width:half_h+freq_width+1] = 0 #select only vertical frecuencies but not central
+freq_edge_horizontal = freq_edge_horizontal - freq_horizontal #select only horizontal frequencies
+freq_edge_horizontal[half_w-freq_width:half_w+freq_width+1,half_h-freq_width:half_h+freq_width+1] = 0 #select only horizontal frecuencies but not central
+
+im_i_c = np.clip(fp.fft2(fp.fftshift(freq_central)).real,0,None) # clip pixel values after IFFT
+im_e_l_h = np.clip(fp.fft2(fp.fftshift(freq_horizontal)).real,0,None) 
+im_e_l_v = np.clip(fp.fft2(fp.fftshift(freq_vertical)).real,0,None) 
+im_e_c = np.clip(fp.fft2(fp.fftshift(freq_external)).real,0,None) 
+im_edge_v = np.clip(fp.fft2(fp.fftshift(freq_edge_vertical)).real,0,None) 
+im_edge_h = np.clip(fp.fft2(fp.fftshift(freq_edge_horizontal)).real,0,None) 
 
 #Calculate the field after the second lens
 U_new2 = compute_U_out(freq_central, xv, yv, lam=lam2, z=13*u.cm)
-U0 = cv2.flip(U0, 0)
+#U0 = cv2.flip(U0, 0)
 #Plot all filters and images
-fig, ax = plt.subplots(5, 2, figsize=(10,50))
+fqmax=0.3
+immax=1.5
+fig, ax = plt.subplots(7, 2, figsize=(10,50))
 
 ax[0,0].imshow(np.abs(U0), cmap=cmaps[1])
-ax[0,1].imshow(np.abs(freq2)**0.1, cmap=cmaps[1])
-ax[1,0].imshow(np.abs(freq_central)**0.3, cmap=cmaps[1])
-ax[1,1].imshow(im_i_c**1.3, cmap=cmaps[1])
-ax[2,0].imshow(np.abs(freq_horizontal)**0.3, cmap=cmaps[1])
-ax[2,1].imshow(im_e_l_h**1.3, cmap=cmaps[1])
-ax[3,0].imshow(np.abs(freq_vertical)**0.3, cmap=cmaps[1])
-ax[3,1].imshow(im_e_l_v**1.3, cmap=cmaps[1])
-ax[4,0].imshow(np.abs(freq_external)**0.3, cmap=cmaps[1])
-ax[4,1].imshow(im_e_c**1.3, cmap=cmaps[1])
+ax[0,1].imshow(np.abs(freq2)**0.45, cmap=cmaps[1])
+ax[1,0].imshow(np.abs(freq_central)**fqmax, cmap=cmaps[1])
+ax[1,1].imshow(im_i_c**immax, cmap=cmaps[1])
+ax[2,0].imshow(np.abs(freq_horizontal)**fqmax, cmap=cmaps[1])
+ax[2,1].imshow(im_e_l_h**immax, cmap=cmaps[1])
+ax[3,0].imshow(np.abs(freq_vertical)**fqmax, cmap=cmaps[1])
+ax[3,1].imshow(im_e_l_v**immax, cmap=cmaps[1])
+ax[4,0].imshow(np.abs(freq_external)**fqmax, cmap=cmaps[1])
+ax[4,1].imshow(im_e_c**immax, cmap=cmaps[1])
+ax[5,0].imshow(np.abs(freq_edge_vertical)**fqmax, cmap=cmaps[1])
+ax[5,1].imshow(im_edge_v**immax, cmap=cmaps[1])
+ax[6,0].imshow(np.abs(freq_edge_horizontal)**fqmax, cmap=cmaps[1])
+ax[6,1].imshow(im_edge_h**immax, cmap=cmaps[1])
 
 ax[0,0].set_title("Apertura")
 ax[0,1].set_title("Transformada de Fourier")
@@ -150,6 +166,10 @@ ax[3,0].set_title("Filtro vertical")
 ax[3,1].set_title("Imagen")
 ax[4,0].set_title("Filtro circular (externo)")
 ax[4,1].set_title("Imagen")
+ax[5,0].set_title("Filtro borde horizontal")
+ax[5,1].set_title("Imagen")
+ax[6,0].set_title("Filtro borde vertical")
+ax[6,1].set_title("Imagen")
 
 ax[0,0].axis('off')
 ax[0,1].axis('off')
@@ -161,7 +181,9 @@ ax[3,0].axis('off')
 ax[3,1].axis('off')
 ax[4,0].axis('off')
 ax[4,1].axis('off')
+ax[5,0].axis('off')
+ax[5,1].axis('off')
+ax[6,0].axis('off')
+ax[6,1].axis('off')
 
 plt.savefig(f'./plots/{j}_sim.png')  
-
-
