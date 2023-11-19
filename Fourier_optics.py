@@ -80,7 +80,7 @@ cmaps = [LinearSegmentedColormap.from_list('custom',
                                             N=256) for lam in [lam1, lam2, lam3, lam4]]
 
 #Calculation for a slit with green light
-j="spd"#input("Enter apature function")#.upper()
+j="arrow"#input("Enter apature function" as a black and white image with a black background)#.upper()
 U0 = np.array(Image.open(f'./images/{j}.jpg').convert('L'))
 #U0 = cv2.flip(U0, 0)
 #U0 = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
